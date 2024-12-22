@@ -26,3 +26,10 @@ stages:
               mavenAuthenticateFeed: false
               effectivePomSkip: false
               sonarQubeRunAnalysis: false
+          - task: Docker@2
+            inputs:
+              containerRegistry: DockerHub
+              repository: mahmoudk1000/petclinic
+              command: buildAndPush
+              Dockerfile: '**/Dockerfile'
+              tags: latest
