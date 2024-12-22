@@ -36,6 +36,9 @@ import org.springframework.web.servlet.ModelAndView;
 import jakarta.validation.Valid;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import io.micrometer.core.annotation.Timed;
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * @author Juergen Hoeller
  * @author Ken Krebs
@@ -73,6 +76,7 @@ class OwnerController {
 	}
 
 	@PostMapping("/owners/new")
+	@Timed(value = "owner.create.time", description = "Time taken to create owner")
 	public String processCreationForm(@Valid Owner owner, BindingResult result, RedirectAttributes redirectAttributes) {
 		if (result.hasErrors()) {
 			redirectAttributes.addFlashAttribute("error", "There was an error in creating the owner.");
@@ -90,6 +94,7 @@ class OwnerController {
 	}
 
 	@GetMapping("/owners")
+	@Timed(value = "owner.find.time", description = "Time taken to find owner")
 	public String processFindForm(@RequestParam(defaultValue = "1") int page, Owner owner, BindingResult result,
 			Model model) {
 		// allow parameterless GET request for /owners to return all records

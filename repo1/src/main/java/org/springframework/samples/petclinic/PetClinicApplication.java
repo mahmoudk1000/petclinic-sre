@@ -20,6 +20,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
+import org.springframework.context.annotation.Bean;
+import io.micrometer.core.aop.TimedAspect;
+import io.micrometer.core.instrument.MeterRegistry;
+
 /**
  * PetClinic Spring Boot Application.
  *
@@ -29,6 +33,11 @@ import org.springframework.context.annotation.ImportRuntimeHints;
 @SpringBootApplication
 @ImportRuntimeHints(PetClinicRuntimeHints.class)
 public class PetClinicApplication {
+
+	@Bean
+	public TimedAspect timedAspect(MeterRegistry registry) {
+		return new TimedAspect(registry);
+	}
 
 	public static void main(String[] args) {
 		SpringApplication.run(PetClinicApplication.class, args);
