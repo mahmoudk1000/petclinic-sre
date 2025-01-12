@@ -1,0 +1,55 @@
+---
+# Default values for petclinic.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicaCount: 1
+image:
+  repository: nexus-registry.blueteam.net:30443/release
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+imagePullSecrets:
+  name: regcred
+nameOverride: ''
+fullnameOverride: ''
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: petclinic
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+deployment:
+  postStart: {}
+    # command: [/bin/sh, -c, update-ca-certificates]
+service:
+  type: ClusterIP
+  port: 8080
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: dev.blueteam.net
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+volumeMounts: {}
+postgresql:
+  enabled: true
+  fullnameOverride:
+  auth:
+    username: petclinic
+    password: petclinic
+    database: petclinic
+  service:
+    clusterIP:
+  primary:
+    persistence:
+      enabled: true
+      storageClass: local
+      accessModes: [ReadWriteOnce]
+      size: 2Gi
+ 

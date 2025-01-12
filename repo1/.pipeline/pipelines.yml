@@ -1,0 +1,65 @@
+---
+trigger:
+  branches:
+    include: ['*']
+pr:
+  branches:
+    include: ['*']
+variables:
+  - name: sonarQubeEndPoint
+    value: SonarQubeServiceConnection
+  - name: mavenOptions
+    value: verify sonar:sonar -DskipTests
+  - name: jdkVersion
+    value: /usr/lib/jvm/java-17-openjdk-amd64/
+  - name: projectKey
+    value: petclinic
+  - name: projectName
+    value: petclinic
+  - ${{ if contains('main', variables['Build.SourceBranchName']) }}:
+      - template: values-prd.yml
+  - ${{ if contains('release', variables['Build.SourceBranchName']) }}:
+      - template: values-tst.yml
+  - ${{ if contains('dev', variables['Build.SourceBranchName']) }}:
+      - template: values-dev.yml
+pool:
+  name: SelfHostedAgents
+  vmImage: Agent01
+stages:
+  - stage: CI
+    displayName: CI
+    jobs:
+      - job: CI
+        displayName: Integration
+        steps:
+          - template: templates/sca.yml
+            parameters:
+              sonarQubeEndPoint: ${{ variables.sonarQubeEndPoint }}
+              projectKey: ${{ variables.projectKey }}
+              projectName: ${{ variables.projectName }}
+          - ${{ if contains('main,release,dev', variables['Build.SourceBranchName']) }}:
+              - template: templates/build.yml
+                parameters:
+                  mavenOptions: ${{ variables.mavenOptions }}
+                  jdkVersion: ${{ variables.jdkVersion }}
+          - ${{ if contains('main,release,dev', variables['Build.SourceBranchName']) }}:
+              - template: templates/docker.yml
+                parameters:
+                  registryConfigName: ${{ variables.registryConfigName }}
+                  repoName: ${{ variables.repoName }}
+                  dockerfile: ${{ variables.dockerfile }}
+  - stage: CD
+    displayName: Deploy
+    dependsOn: [CI]
+    condition: and(succeeded('CI'), contains('main,release,dev', variables['Build.SourceBranchName']))
+    jobs:
+      - job: CD
+        displayName: Deploy
+        steps:
+          - ${{ if contains('main,release,dev', variables['Build.SourceBranchName']) }}:
+              - template: templates/deploy.yml
+                parameters:
+                  valuesFilePath: ${{ variables.valuesFilePath }}
+                  chartPath: ${{ variables.chartPath }}
+                  releaseName: ${{ variables.releaseName }}
+                  namespace: ${{ variables.namespace }}

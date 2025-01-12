@@ -1,0 +1,57 @@
+---
+# Default values for petclinic.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+replicaCount: 1
+image:
+  repository: mahmoudk1000/petclinic
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ''
+imagePullSecrets:
+  name: regcred
+nameOverride: ''
+fullnameOverride: ''
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: petclinic
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+deployment:
+  postStart: {}
+service:
+  type: ClusterIP
+  port: 8080
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: blueteam.net
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+volumeMounts: {}
+postgresql:
+  enabled: true
+  fullnameOverride:
+  auth:
+    username: petclinic
+    password: petclinic
+    database: petclinic
+  service:
+    clusterIP:
+  # persistence:
+  #   storageClass: manual
+  #   size: 5Gi
+  primary:
+    persistence:
+      enabled: true
+      storageClass: local
+      accessModes: [ReadWriteOnce]
+      size: 5Gi

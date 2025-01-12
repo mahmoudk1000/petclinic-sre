@@ -1,0 +1,17 @@
+---
+parameters:
+  - name: sonarQubeEndPoint
+    default: SonarQubeServer
+  - name: projectKey
+    default: petclinic
+  - name: projectName
+    default: petclinic
+steps:
+  - task: SonarQubePrepare@6
+    displayName: SCA
+    inputs:
+      SonarQube: ${{ parameters.SonarQubeEndPoint }}
+      scannerMode: Other
+      extraProperties: |-
+        sonar.projectKey=${{ parameters.projectKey }}
+        sonar.projectName=${{ parameters.projectName }}

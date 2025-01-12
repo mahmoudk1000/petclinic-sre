@@ -1,0 +1,10 @@
+---
+variables:
+  VERSION: $(Build.BuildId)
+  registryConfigName: NexusReg
+  repoName: release
+  dockerfile: '**/Dockerfile'
+  namespace: prd
+  valuesFilePath: .helm/prd-values.yaml
+  chartPath: .helm
+  releaseName: petclinic-prd

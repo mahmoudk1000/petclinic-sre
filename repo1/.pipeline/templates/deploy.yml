@@ -1,0 +1,26 @@
+---
+parameters:
+  - name: valuesFilePath
+    type: string
+    default: ''
+  - name: chartPath
+    type: string
+    default: ''
+  - name: releaseName
+    type: string
+    default: ''
+  - name: namespace
+    type: string
+    default: ''
+steps:
+  - task: Bash@3
+    displayName: Deploy
+    inputs:
+      targetType: inline
+      script: |-
+        helm upgrade --dependency-update --install \
+          ${{ parameters.releaseName }} ${{ parameters.chartPath }} \
+          --values ${{ parameters.valuesFilePath }} \
+          --namespace ${{ parameters.namespace }} \
+          --create-namespace \
+          --set image.tag=$(VERSION)

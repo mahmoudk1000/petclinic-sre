@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dev-pv
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /backup/data/dev
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local

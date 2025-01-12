@@ -1,0 +1,20 @@
+---
+parameters:
+  - name: mavenOptions
+    type: string
+    default: ''
+  - name: jdkVersion
+    type: string
+    default: ''
+steps:
+  - task: Maven@4
+    displayName: Build
+    inputs:
+      mavenPomFile: pom.xml
+      options: ${{ parameters.mavenOptions }}
+      publishJUnitResults: false
+      javaHomeOption: Path
+      jdkDirectory: ${{ parameters.jdkVersion }}
+      mavenAuthenticateFeed: false
+      effectivePomSkip: false
+      sonarQubeRunAnalysis: true
