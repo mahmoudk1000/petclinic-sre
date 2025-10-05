@@ -1,0 +1,21 @@
+---
+parameters:
+  - name: chartPath
+    type: string
+    default: ''
+  - name: releaseName
+    type: string
+    default: ''
+  - name: namespace
+    type: string
+    default: ''
+steps:
+  - task: Bash@3
+    inputs:
+      targetType: inline
+      script: |-
+        helm upgrade --dependency-update --install \
+          ${{ parameters.releaseName }} ${{ parameters.chartPath }} \
+          --set image.tag=$(Build.BuildId) \
+          --namespace ${{ parameters.namespace }} \
+          --create-namespace

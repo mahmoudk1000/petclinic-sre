@@ -1,0 +1,37 @@
+---
+trigger:
+  branches:
+    include: ['*']
+variables:
+  - template: values.yml
+pool:
+  name: AzDO
+  demands:
+  - nodejs
+stages:
+  - stage: CI
+    displayName: CI
+    jobs:
+      - job: BuildPublish
+        timeoutInMinutes: 120
+        cancelTimeoutInMinutes: 20
+        displayName: Build & Publish
+        steps:
+          - template: templates/docker.yml
+            parameters:
+              containerRegistry: ${{ variables.containerRegistry }}
+              repository: ${{ variables.repository }}
+              Dockerfile: ${{ variables.Dockerfile }}
+  - stage: CD
+    displayName: CD
+    dependsOn: [CI]
+    condition: succeeded('CI')
+    jobs:
+      - job: Deploy
+        displayName: Deploy
+        steps:
+          - template: templates/deploy.yml
+            parameters:
+              chartPath: ${{ variables.chartPath }}
+              releaseName: ${{ variables.releaseName }}
+              namespace: ${{ variables.namespace }}
