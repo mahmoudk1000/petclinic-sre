@@ -1,0 +1,10 @@
+---
+variables:
+  # CI
+  containerRegistry: NexusReg
+  repository: petclinic-tests
+  Dockerfile: '**/Dockerfile'
+  # CD
+  chartPath: petclinic-tests
+  releaseName: petclinic-tests
+  namespace: prd

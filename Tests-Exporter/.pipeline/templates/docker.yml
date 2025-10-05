@@ -1,0 +1,24 @@
+---
+parameters:
+  - name: containerRegistry
+    type: string
+    default: ''
+  - name: repository
+    type: string
+    default: ''
+  - name: Dockerfile
+    type: string
+    default: ''
+steps:
+  - task: Docker@2
+    displayName: Login
+    inputs:
+      containerRegistry: ${{ parameters.containerRegistry }}
+      command: login
+  - task: Docker@2
+    displayName: build & Push
+    inputs:
+      containerRegistry: ${{ parameters.containerRegistry }}
+      repository: ${{ parameters.repository }}
+      command: buildAndPush
+      Dockerfile: ${{ parameters.Dockerfile }}

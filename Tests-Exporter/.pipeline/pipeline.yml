@@ -1,0 +1,35 @@
+---
+trigger:
+  branches:
+    include: ['*']
+variables:
+  - template: values.yml
+pool:
+  name: AzDO
+  demands:
+  - java
+stages:
+  - stage: CI
+    displayName: CI
+    jobs:
+      - job: BuildPublish
+        displayName: Build & Publish
+        steps:
+          - template: templates/docker.yml
+            parameters:
+              containerRegistry: ${{ variables.containerRegistry }}
+              repository: ${{ variables.repository }}
+              Dockerfile: ${{ variables.Dockerfile }}
+  - stage: CD
+    displayName: Deploy
+    dependsOn: [CI]
+    condition: succeeded('CI')
+    jobs:
+      - job: Deploy
+        displayName: Deploy
+        steps:
+          - template: templates/deploy.yml
+            parameters:
+              chartPath: ${{ variables.chartPath }}
+              releaseName: ${{ variables.releaseName }}
+              namespace: ${{ variables.namespace }}
