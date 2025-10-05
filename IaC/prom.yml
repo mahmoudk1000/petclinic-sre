@@ -1,0 +1,121 @@
+---
+- name: Install Prometheus Stack
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+    - name: Add Prometheus Helm chart repository
+      kubernetes.core.helm_repository:
+        name: prometheus-community
+        repo_url: https://prometheus-community.github.io/helm-charts
+
+    # Step 2: Create the prometheus namespace
+    - name: Create the prometheus namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: prometheus
+        state: present
+
+    - name: Create Local Persistent Volume for Grafana
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: PersistentVolume
+        namespace: prometheus
+        state: present
+        definition:
+          metadata:
+            name: grafana-pv
+          spec:
+            capacity:
+              storage: 5Gi
+            volumeMode: Filesystem
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            local:
+              path: /backup/data/prom-stack
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - ip-10-0-2-105
+
+    - name: Deploy
+      kubernetes.core.helm:
+        release_name: prometheus
+        chart_ref: prometheus-community/kube-prometheus-stack
+        release_namespace: prometheus
+        create_namespace: true
+        release_state: present
+        wait: false
+        values:
+          prometheus:
+            prometheusSpec:
+              additionalScrapeConfigs:
+                - job_name: "petclinic-tests-exporter"
+                  scrape_interval: 60s
+                  scrape_timeout: 30s
+                  metrics_path: /metrics
+                  static_configs:
+                    - targets: ['petclinic-tests.prd:9099']
+                - job_name: "petclinic-exporter"
+                  scrape_interval: 60s
+                  scrape_timeout: 30s 
+                  metrics_path: /metrics
+                  static_configs:
+                    - targets: ['petclinic-exporter.prd:9098']
+          grafana:
+            enabled: true
+            ingress:
+              enabled: true
+              ingressClassName: nginx
+              hosts:
+                - grafana.blueteam.net
+            persistence:
+              enabled: true
+              type: sts
+              storageClassName: "local"
+              accessModes:
+                - ReadWriteOnce
+              size: 5Gi
+            # Define Grafana Data Source for PostgreSQL Exporter
+            datasources:
+              datasources.yaml:
+                apiVersion: 1
+                datasources:
+                  - name: PostgreSQL
+                    type: postgres
+                    access: proxy
+                    url: "petclinic-prd-postgresql.prd:5432"
+                    user: "petclinic"
+                    database: "petclinic"
+                    secureJsonData:
+                      password: "petclinic"
+                    isDefault: false
+                    jsonData:
+                      postgresVersion: 1600
+                      maxOpenConns: 10
+                      maxIdleConns: 5
+                      sslmode: disable
+
+    - name: Install PostgreSQL Exporter
+      kubernetes.core.helm:
+        release_name: postgres-exporter
+        chart_ref: prometheus-community/prometheus-postgres-exporter
+        release_namespace: prometheus
+        create_namespace: false
+        release_state: present
+        wait: true
+        values:
+          config:
+            autoDiscoverDatabases: true
+            datasource:
+              host: "petclinic-prd-postgresql.prd"
+              user: "petclinic"
+              password: "petclinic"
+              database: "petclinic"

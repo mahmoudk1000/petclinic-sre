@@ -1,0 +1,33 @@
+---
+- name: Create Docker registry service for Nexus
+  hosts: localhost
+  tasks:
+
+    - name: Check if Nexus service exists in nexus namespace
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: nexus
+        name: nexus-docker-registry
+      register: nexus_service_check
+      ignore_errors: true
+
+    - name: Create Docker registry service for Nexus if it doesn't exist
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: nexus-docker-registry
+            namespace: nexus
+          spec:
+            ports:
+              - port: 5000
+                targetPort: 5000
+                protocol: TCP
+                name: docker
+            selector:
+              app.kubernetes.io/instance: nexus-oss
+            type: ClusterIP
+
+

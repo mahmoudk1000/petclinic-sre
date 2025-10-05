@@ -1,0 +1,99 @@
+---
+- name: Install SonarQube Developer Edition on Kubernetes using Helm
+  hosts: localhost
+  tasks:
+
+    - name: Add SonarQube Helm repository
+      ansible.builtin.command: helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube
+      register: helm_repo_add
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      when: helm_repo_add.changed
+
+    - name: Check if SonarQube Helm release exists
+      command: helm status sonarqube --namespace sonarqube
+      register: helm_status
+      ignore_errors: true  # Ignore errors if the release does not exist
+
+    - name: Uninstall existing SonarQube release if it exists
+      ansible.builtin.command: helm uninstall sonarqube --namespace sonarqube
+      when: helm_status.rc == 0  # Only run if the release exists
+
+
+    - name: Remove finalizer from existing PostgreSQL Persistent Volume if it exists
+      command: >
+        kubectl patch pv sonarqube-postgresql-pv -p '{"metadata":{"finalizers":null}}'
+      ignore_errors: true  # Ignore errors if the PV does not exist
+
+    - name: Delete existing PostgreSQL Persistent Volume if it exists
+      kubernetes.core.k8s:
+        state: absent
+        name: sonarqube-postgresql-pv
+        kind: PersistentVolume
+        
+    - name: Delete existing SonarQube Persistent Volume if it exists
+      kubernetes.core.k8s:
+        state: absent
+        name: sonarqube-pv
+        kind: PersistentVolume
+      ignore_errors: true
+
+    - name: Create Persistent Volume for PostgreSQL
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: sonarqube-postgresql-pv
+          spec:
+            capacity:
+              storage: 14Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            hostPath:
+              path: /backup/data/sonarqube-postgresql
+
+    - name: Create Persistent Volume for SonarQube
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: sonarqube-pv
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            hostPath:
+              path: /backup/data/sonarqube
+
+    - name: Install SonarQube Community Edition using Helm
+      ansible.builtin.command: >
+        helm install sonarqube sonarqube/sonarqube --namespace sonarqube
+        --create-namespace
+        --set persistence.enabled=true
+        --set persistence.size=10Gi
+        --set persistence.storageClass=local
+        --set service.type=ClusterIP
+        --set postgresql.persistence.enabled=true
+        --set postgresql.persistence.size=14Gi
+        --set postgresql.persistence.storageClass=local
+        --set postgresql.persistence.accessModes={ReadWriteOnce} 
+
+
+    - name: Wait for SonarQube pods to be ready
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: sonarqube
+      register: sonarqube_pods
+      until: sonarqube_pods.resources | selectattr('status.phase', 'eq', 'Running') | list | length > 0
+      retries: 3
+      delay: 10

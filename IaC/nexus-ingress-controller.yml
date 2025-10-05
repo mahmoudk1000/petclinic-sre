@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress  
+  namespace: nexus
+  annotations:
+    kubernetes.io/ingress.class: nginx  # Specify the Ingress class
+    nginx.ingress.kubernetes.io/rewrite-target: /  # Ensure rewrite is set
+spec:
+  tls:
+    - hosts:
+        - nexus.blueteam.net  
+      secretName: nexus-tls
+  rules:
+    - host: nexus.blueteam.net
+      http:
+        paths:
+          - path: /  
+            pathType: Prefix
+            backend:
+              service:
+                name: nexus-oss-nexus-repository-manager  
+                port:
+                  number: 8081

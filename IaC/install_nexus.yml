@@ -1,0 +1,86 @@
+---
+- name: Install Nexus OSS 3 on Kubernetes using Helm
+  hosts: localhost
+  tasks:
+
+    - name: Add Sonatype Helm repository for Nexus
+      ansible.builtin.command: helm repo add sonatype https://sonatype.github.io/helm3-charts/
+      register: helm_repo_add
+
+    - name: Update Helm repositories
+      ansible.builtin.command: helm repo update
+      when: helm_repo_add.changed
+
+    - name: Check if Nexus Helm release exists in nexus namespace
+      command: helm status nexus-oss --namespace nexus
+      register: helm_status
+      ignore_errors: true  # Ignore errors if the release does not exist
+
+    - name: Uninstall existing Nexus release if it exists
+      ansible.builtin.command: helm uninstall nexus-oss --namespace nexus
+      when: helm_status.rc == 0  # Only run if the release exists
+
+    - name: Delete existing Nexus Persistent Volume if it exists
+      kubernetes.core.k8s:
+        state: absent
+        name: nexus-pv
+        kind: PersistentVolume
+      ignore_errors: true  # Ignore errors if PV does not exist
+    
+
+    # Now create new PV for Nexus
+    - name: Create Persistent Volume for Nexus
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: nexus-pv
+          spec:
+            capacity:
+              storage: 10Gi
+            accessModes:
+              - ReadWriteOnce
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local
+            hostPath:
+              path: /backup/data/nexus
+
+    - name: Install Nexus OSS 3 using Helm in nexus namespace
+      ansible.builtin.command: >
+        helm install nexus-oss sonatype/nexus-repository-manager --namespace nexus
+        --set persistence.enabled=true
+        --set persistence.size=10Gi
+        --set persistence.storageClass=local
+        --set service.type=ClusterIP
+        --set service.port=8081
+        --set service.labels.app=nexus
+        --set nexus.security.randomPassword=false
+        --set nexus.docker.enabled=true
+        --set nexus.docker.registries[0].host=nexus.blueteam.net
+        --set nexus.docker.registries[0].port=5000
+
+
+    - name: Wait for Nexus pods to be ready in nexus namespace
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: nexus
+      register: nexus_pods
+      until: nexus_pods.resources | selectattr('status.phase', 'eq', 'Running') | list | length > 0
+      retries: 5
+      delay: 10
+
+    - name: Set the Nexus pod name
+      command: kubectl get pods -l app.kubernetes.io/instance=nexus-oss -n nexus -o jsonpath='{.items[0].metadata.name}'
+      register: nexus_pod_name
+
+    - name: Retrieve Nexus admin password
+      command: kubectl exec -n nexus {{ nexus_pod_name.stdout }} -- cat /nexus-data/admin.password
+      register: nexus_admin_password
+      when: nexus_pod_name.stdout is defined and nexus_pod_name.stdout != ''
+      ignore_errors: true
+
+    - name: Print Nexus admin password
+      debug:
+        msg: "Nexus admin password: {{ nexus_admin_password.stdout }}"
